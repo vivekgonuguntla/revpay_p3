@@ -1,13 +1,11 @@
 spring:
   application:
     name: config-server
+  profiles:
+    active: native
   cloud:
     config:
       server:
-        git:
-          uri: ${CONFIG_REPO_URI:https://github.com/vivekgonuguntla/revpay_p3}
-          default-label: main
-          clone-on-start: true
         native:
           search-locations: classpath:/config
 

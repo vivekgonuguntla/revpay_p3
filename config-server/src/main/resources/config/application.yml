@@ -1,0 +1,6 @@
+# Default configuration for all services
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
