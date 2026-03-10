@@ -50,7 +50,7 @@ public class CardServiceImpl implements CardService {
         }
 
         // Parse card type and payment method type
-        CardType cardType = parseCardType(request.getCardType());
+        CardType cardType = detectCardType(request.getCardNumber());
         PaymentMethodType paymentMethodType = parsePaymentMethodType(request.getPaymentMethodType());
 
         // Encrypt sensitive data
@@ -58,8 +58,8 @@ public class CardServiceImpl implements CardService {
         String encryptedCvv = encryptionService.encrypt(request.getCvv());
         String lastFourDigits = request.getCardNumber().substring(request.getCardNumber().length() - 4);
 
-        // Check if this is the first card (should be default)
-        boolean isFirstCard = cardRepository.countByUserId(userId) == 0;
+        boolean makeDefault = Boolean.TRUE.equals(request.getSetAsDefault());
+        boolean hasDefault = cardRepository.existsByUserIdAndIsDefaultTrue(userId);
 
         Card card = Card.builder()
                 .userId(userId)
@@ -70,8 +70,15 @@ public class CardServiceImpl implements CardService {
                 .encryptedCvv(encryptedCvv)
                 .cardType(cardType)
                 .paymentMethodType(paymentMethodType)
-                .isDefault(isFirstCard)
+                .isDefault(makeDefault)
                 .build();
+
+        if (makeDefault) {
+            cardRepository.clearDefaultForUser(userId);
+            card.setDefault(true);
+        } else if (!hasDefault) {
+            card.setDefault(true);
+        }
 
         Card savedCard = cardRepository.save(card);
         CardResponse response = mapToResponse(savedCard);
@@ -198,15 +205,21 @@ public class CardServiceImpl implements CardService {
                 .build();
     }
 
-    private CardType parseCardType(String cardTypeStr) {
-        try {
-            return CardType.valueOf(cardTypeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid card type: " + cardTypeStr);
+    private CardType detectCardType(String cardNumber) {
+        if (cardNumber == null || cardNumber.isBlank()) {
+            return CardType.OTHER;
         }
+        if (cardNumber.startsWith("4")) return CardType.VISA;
+        if (cardNumber.startsWith("5")) return CardType.MASTERCARD;
+        if (cardNumber.startsWith("3")) return CardType.AMEX;
+        if (cardNumber.startsWith("6")) return CardType.DISCOVER;
+        return CardType.OTHER;
     }
 
     private PaymentMethodType parsePaymentMethodType(String paymentMethodTypeStr) {
+        if (paymentMethodTypeStr == null || paymentMethodTypeStr.isBlank()) {
+            return PaymentMethodType.DEBIT;
+        }
         try {
             return PaymentMethodType.valueOf(paymentMethodTypeStr.toUpperCase());
         } catch (IllegalArgumentException e) {

@@ -20,23 +20,25 @@ public class AddCardRequest {
     @Pattern(regexp = "^[0-9]{3,4}$", message = "CVV must be 3 or 4 digits")
     private String cvv;
 
-    @NotBlank(message = "Card type is required")
     private String cardType;
 
     @NotBlank(message = "Payment method type is required")
     private String paymentMethodType;
 
+    private Boolean setAsDefault;
+
     public AddCardRequest() {
     }
 
     public AddCardRequest(String cardHolderName, String cardNumber, String expiryDate,
-                         String cvv, String cardType, String paymentMethodType) {
+                         String cvv, String cardType, String paymentMethodType, Boolean setAsDefault) {
         this.cardHolderName = cardHolderName;
         this.cardNumber = cardNumber;
         this.expiryDate = expiryDate;
         this.cvv = cvv;
         this.cardType = cardType;
         this.paymentMethodType = paymentMethodType;
+        this.setAsDefault = setAsDefault;
     }
 
     public static AddCardRequestBuilder builder() {
@@ -91,6 +93,14 @@ public class AddCardRequest {
         this.paymentMethodType = paymentMethodType;
     }
 
+    public Boolean getSetAsDefault() {
+        return setAsDefault;
+    }
+
+    public void setSetAsDefault(Boolean setAsDefault) {
+        this.setAsDefault = setAsDefault;
+    }
+
     public static class AddCardRequestBuilder {
         private String cardHolderName;
         private String cardNumber;
@@ -98,6 +108,7 @@ public class AddCardRequest {
         private String cvv;
         private String cardType;
         private String paymentMethodType;
+        private Boolean setAsDefault;
 
         AddCardRequestBuilder() {
         }
@@ -132,9 +143,14 @@ public class AddCardRequest {
             return this;
         }
 
+        public AddCardRequestBuilder setAsDefault(Boolean setAsDefault) {
+            this.setAsDefault = setAsDefault;
+            return this;
+        }
+
         public AddCardRequest build() {
             return new AddCardRequest(cardHolderName, cardNumber, expiryDate,
-                                     cvv, cardType, paymentMethodType);
+                                     cvv, cardType, paymentMethodType, setAsDefault);
         }
     }
 }
