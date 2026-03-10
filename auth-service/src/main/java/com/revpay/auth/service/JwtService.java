@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import com.revpay.auth.entity.User;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -21,6 +23,9 @@ public class JwtService {
     @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
+    @Value("${jwt.expiration:86400000}")
+    private long jwtExpiration;
+
     // Standard generate token (if needed)
     public String generateToken(UserDetails userDetails) {
         return generateToken(new HashMap<>(), userDetails);
@@ -31,7 +36,7 @@ public class JwtService {
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24h
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -44,6 +49,7 @@ public class JwtService {
         return generateToken(claims, userDetails);
     }
 
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -53,6 +59,13 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
+    public String generateToken(User user) {
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("userId", user.getId().toString());
+        extraClaims.put("email", user.getEmail());
+        extraClaims.put("role", user.getRole().name());
+        return generateToken(extraClaims, user);
+    }
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
