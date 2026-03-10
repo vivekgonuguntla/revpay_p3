@@ -2,6 +2,7 @@ package com.revpay.gateway.filter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -18,19 +19,15 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAuthenticationFilter.Config> {
 
-    @Value("${jwt.secret:revpay-secret-key-for-jwt-token-generation-and-validation-minimum-256-bits}")
+    @Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String jwtSecret;
 
-    public JwtAuthenticationFilter() {
-        super(Config.class);
-    }
+    public JwtAuthenticationFilter() { super(Config.class); }
 
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
-
-            // Extract JWT token from Authorization header
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -38,32 +35,26 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 return exchange.getResponse().setComplete();
             }
 
-            String token = authHeader.substring(7);
-
             try {
-                // Validate and parse JWT token
-                SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+                SecretKey key = Keys.hmacShaKeyFor(getSignInKey(jwtSecret));
                 Claims claims = Jwts.parserBuilder()
                         .setSigningKey(key)
                         .build()
-                        .parseClaimsJws(token)
+                        .parseClaimsJws(authHeader.substring(7))
                         .getBody();
 
-                // Extract user information from claims
                 String userId = claims.get("userId", String.class);
                 String email = claims.getSubject();
                 String role = claims.get("role", String.class);
 
-                // Add user information to request headers
-                ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                ServerHttpRequest modifiedRequest = request.mutate()
+                        .header(HttpHeaders.AUTHORIZATION, authHeader)
                         .header("X-User-Id", userId != null ? userId : "")
                         .header("X-User-Email", email != null ? email : "")
                         .header("X-User-Role", role != null ? role : "")
                         .build();
 
-                ServerWebExchange modifiedExchange = exchange.mutate().request(modifiedRequest).build();
-
-                return chain.filter(modifiedExchange);
+                return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
             } catch (Exception e) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -72,7 +63,14 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
         };
     }
 
-    public static class Config {
-        // Configuration properties can be added here if needed
+    private byte[] getSignInKey(String secret) {
+        try {
+            return Decoders.BASE64.decode(secret);
+        } catch (IllegalArgumentException ex) {
+            // Fallback for non-base64 secrets
+            return secret.getBytes(StandardCharsets.UTF_8);
+        }
     }
+
+    public static class Config {}
 }

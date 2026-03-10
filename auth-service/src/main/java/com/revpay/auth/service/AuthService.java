@@ -86,7 +86,7 @@ public class AuthService implements UserDetailsService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully: {}", savedUser.getEmail());
 
-        String token = jwtService.generateToken(savedUser);
+        String token = jwtService.generateToken(savedUser, savedUser.getId(), savedUser.getRole().name());
         return AuthResponse.builder()
                 .token(token)
                 .userId(savedUser.getId())
@@ -126,7 +126,7 @@ public class AuthService implements UserDetailsService {
 
             log.info("User logged in successfully: {}", user.getEmail());
 
-            String token = jwtService.generateToken(user);
+            String token = jwtService.generateToken(user, user.getId(), user.getRole().name());
             return AuthResponse.builder()
                     .token(token)
                     .userId(user.getId())
