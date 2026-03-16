@@ -1,269 +1,85 @@
-# RevPay Microservices (P3)
+# RevPay Microservices Monorepo
+Spring Cloud microservices (Java 17) + Angular 16 SPA for RevPay. This README links the two halves so you can build, run, and debug quickly.
 
-RevPay is a comprehensive financial application built using a microservices architecture. This project demonstrates modern enterprise patterns including API Gateway, Service Discovery, and distributed configuration management.
+## What Is RevPay?
+RevPay is a demo-grade digital payments platform: users authenticate, manage cards, hold wallet balances, request/send money, receive notifications, and run business-facing analytics. It’s built to showcase modern cloud patterns (API Gateway, service discovery, centralized config, JWT security) and a matching Angular client.
 
-
+## Repo Layout
+- `revpay_p3/` – Spring Boot 3.2 / Spring Cloud 2023 microservices: Config Server, Discovery (Eureka), API Gateway, Auth, Card, Notification, Wallet, Business. Maven build, Dockerfiles, Compose.
+- `frontend/` – Angular 16 client using JWT auth against the API Gateway.
 
 ## Architecture Overview
+Backend follows a typical Spring Cloud setup: Config Server feeds shared properties; services register with Eureka; API Gateway handles routing, CORS, and JWT verification, then forwards enriched headers (`X-User-Id`, `X-User-Email`, `X-User-Role`) to downstream services. Data is persisted to MySQL. Docker Compose wires the whole stack locally; services expose actuator endpoints for health and gateway route inspection. The Angular SPA talks only to the gateway.
 
-This project uses Spring Boot 3.2.0 and Spring Cloud 2023.0.0 to implement a microservices-based architecture with the following components:
+## Services & Modules
+### Infrastructure (backend)
+- **Config Server (8888)** – centralized config (Git/native).
+- **Discovery Server (8761)** – Eureka registry + dashboard.
+- **API Gateway (8080)** – routing, JWT auth, CORS, header propagation.
 
-### Infrastructure Services
+### Business Services (backend)
+- **Auth Service (8081)** – login/registration, JWT issuing, security flows.
+- **Card Service (8082)** – card linking and verification.
+- **Notification Service (8083)** – user notifications.
+- **Wallet Service (8084)** – balances, transactions, money requests.
+- **Business Service (8085)** – business accounts and analytics.
 
-1. **Config Server** (Port 8888)
-   - Centralized configuration management
-   - Supports both Git and native file system configuration
+### Frontend (Angular)
+- Single Angular app with routed screens: login/register, dashboard, wallet, transactions, requests, payment methods, business, analytics, notifications, security/recovery. Auth is enforced by `AuthGuard`; `AuthInterceptor` attaches the JWT.
 
-2. **Discovery Server** (Port 8761)
-   - Eureka-based service registry
-   - Enables service-to-service discovery
-   - Web dashboard available at http://localhost:8761
+## Prerequisites
+- Java 17+, Maven 3.8+
+- Node.js 18+ and npm (Angular CLI 16 optional)
+- Docker & Docker Compose (recommended path)
+- MySQL 8 only if you run services outside Docker
 
-3. **API Gateway** (Port 8080)
-   - Single entry point for all client requests
-   - JWT-based authentication
-   - Routes requests to appropriate microservices
-   - CORS configuration for frontend integration
-
-### Business Services
-
-4. **Auth Service** (Port 8081)
-   - User authentication and registration
-   - JWT token generation and validation
-   - Security management endpoints
-
-5. **Card Service** (Port 8082)
-   - Credit/debit card management
-   - Card linking and verification
-
-6. **Notification Service** (Port 8083)
-   - User notification management
-   - Event-driven notifications
-
-7. **Wallet Service** (Port 8084)
-   - Digital wallet operations
-   - Transaction management
-   - Money request handling
-
-8. **Business Service** (Port 8085)
-   - Business account management
-   - Business-specific operations
-
-## Technology Stack
-
-- **Java**: 17
-- **Spring Boot**: 3.2.0
-- **Spring Cloud**: 2023.0.0
-- **Database**: MySQL 8.0
-- **JWT**: JSON Web Tokens (jjwt 0.11.5)
-- **Build Tool**: Maven
-- **Containerization**: Docker & Docker Compose
-
-## API Gateway Routes
-
-The API Gateway routes requests as follows:
-
-| Route | Target Service | Authentication Required |
-|-------|---------------|------------------------|
-| `/api/auth/**` | auth-service | No |
-| `/api/v1/security/**` | auth-service | Yes |
-| `/api/v1/cards/**` | card-service | Yes |
-| `/api/v1/notifications/**` | notification-service | Yes |
-| `/api/v1/wallet/**` | wallet-service | Yes |
-| `/api/v1/transactions/**` | wallet-service | Yes |
-| `/api/v1/requests/**` | wallet-service | Yes |
-| `/api/v1/business/**` | business-service | Yes |
-
-## JWT Authentication
-
-The API Gateway validates JWT tokens and extracts user information:
-- **X-User-Id**: User's unique identifier
-- **X-User-Email**: User's email address
-- **X-User-Role**: User's role (USER, ADMIN, BUSINESS)
-
-These headers are automatically added to all downstream service requests.
-
-## Getting Started
-
-### Prerequisites
-
-- Java 17 or higher
-- Maven 3.6+
-- Docker and Docker Compose (optional, for containerized deployment)
-- MySQL 8.0 (if running services locally)
-
-### Building the Project
-
+## Quick Start (recommended)
 ```bash
-# Navigate to project root
-cd /Users/vimalkrishnan/Workspace/revature/2353/review/p2/repos/p3-revpay
-
-# Build all modules
-mvn clean install
-```
-
-### Running with Docker Compose
-
-```bash
-# Start all services
+# 1) Backend stack
+cd revpay_p3
 docker-compose up -d
 
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
+# 2) Frontend dev server
+cd ../frontend
+npm install
+npm start     # http://localhost:4200
 ```
+Gateway lives at `http://localhost:8080`; services expose 8081-8085; Discovery 8761; Config 8888; MySQL 3306.
 
-### Running Services Locally
+## Backend Cheat Sheet (`revpay_p3/`)
+- Build all: `mvn clean install`
+- Run one service locally: `cd <service> && mvn spring-boot:run`
+- Key env vars (compose sets defaults):
+  - `JWT_SECRET`
+  - `CONFIG_REPO_URI=https://github.com/revpay/config-repo`
+  - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`
+  - `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE`
+- API Gateway injects `X-User-Id`, `X-User-Email`, `X-User-Role` after JWT validation.
+- Full details: `revpay_p3/README.md` (routes table, monitoring, troubleshooting).
 
-1. **Start Config Server**
-```bash
-cd config-server
-mvn spring-boot:run
-```
+## Frontend Cheat Sheet (`frontend/`)
+- Dev: `npm start` → `http://localhost:4200`
+- Build: `npm run build` → `dist/`
+- Tests: `npm test`
+- API base URL: `src/environments/environment.ts` (`http://localhost:8080/api/v1` by default)
+- Auth is guarded by `AuthGuard`; `AuthInterceptor` adds JWT from `localStorage`.
+- Full app notes: `frontend/README.md`.
 
-2. **Start Discovery Server**
-```bash
-cd discovery-server
-mvn spring-boot:run
-```
+## Ports
+- Frontend 4200
+- Gateway 8080
+- Auth/Card/Notification/Wallet/Business 8081/8082/8083/8084/8085
+- Discovery 8761
+- Config Server 8888
+- MySQL 3306
 
-3. **Start API Gateway**
-```bash
-cd api-gateway
-mvn spring-boot:run
-```
-
-4. **Start Business Services** (auth, card, notification, wallet, business)
-```bash
-cd auth-service
-mvn spring-boot:run
-```
-
-Repeat for other services.
-
-## Environment Variables
-
-Key environment variables for configuration:
-
-```bash
-# JWT Secret Key (should be at least 256 bits)
-JWT_SECRET=revpay-secret-key-for-jwt-token-generation-and-validation-minimum-256-bits
-
-# Config Repository (for Config Server)
-CONFIG_REPO_URI=https://github.com/revpay/config-repo
-
-# Database Configuration
-SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/revpay
-SPRING_DATASOURCE_USERNAME=root
-SPRING_DATASOURCE_PASSWORD=rootpassword
-
-# Eureka Server
-EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:8761/eureka/
-```
-
-## Service URLs
-
-When all services are running:
-
-- **Config Server**: http://localhost:8888
-- **Discovery Server**: http://localhost:8761
-- **API Gateway**: http://localhost:8080
-- **Auth Service**: http://localhost:8081
-- **Card Service**: http://localhost:8082
-- **Notification Service**: http://localhost:8083
-- **Wallet Service**: http://localhost:8084
-- **Business Service**: http://localhost:8085
-
-## Development Guidelines
-
-### Adding a New Microservice
-
-1. Create a new module directory under the root
-2. Add module to parent `pom.xml`
-3. Include Eureka client dependency
-4. Configure `application.yml` with service name and port
-5. Register routes in API Gateway `RouteConfig.java`
-6. Add service to `docker-compose.yml`
-
-### CORS Configuration
-
-The API Gateway is configured to allow requests from:
-- http://localhost:3000 (React)
-- http://localhost:4200 (Angular)
-- http://localhost:5173 (Vite/Vue)
-
-Update `CorsConfig.java` to add additional origins.
-
-## Project Structure
-
-```
-p3-revpay/
-├── pom.xml                    # Parent POM
-├── .gitignore                 # Git ignore rules
-├── docker-compose.yml         # Docker orchestration
-├── README.md                  # This file
-├── config-server/             # Configuration server
-│   ├── pom.xml
-│   └── src/
-├── discovery-server/          # Eureka server
-│   ├── pom.xml
-│   └── src/
-├── api-gateway/               # API Gateway
-│   ├── pom.xml
-│   └── src/
-│       └── main/java/com/revpay/gateway/
-│           ├── ApiGatewayApplication.java
-│           ├── config/
-│           │   ├── CorsConfig.java
-│           │   └── RouteConfig.java
-│           └── filter/
-│               └── JwtAuthenticationFilter.java
-├── auth-service/              # Authentication service
-├── card-service/              # Card management service
-├── notification-service/      # Notification service
-├── wallet-service/            # Wallet and transaction service
-└── business-service/          # Business account service
-```
-
-## Monitoring and Health Checks
-
-All services expose actuator endpoints:
-
-```bash
-# Check service health
-curl http://localhost:8080/actuator/health
-
-# View API Gateway routes
-curl http://localhost:8080/actuator/gateway/routes
-```
+## Useful URLs
+- Gateway health: `http://localhost:8080/actuator/health`
+- Gateway routes: `http://localhost:8080/actuator/gateway/routes`
+- Eureka dashboard: `http://localhost:8761`
 
 ## Troubleshooting
-
-### Service not registering with Eureka
-- Ensure Discovery Server is running
-- Check `eureka.client.service-url.defaultZone` configuration
-- Verify network connectivity between services
-
-### JWT Authentication Failures
-- Verify JWT_SECRET is consistent across services
-- Check token expiration
-- Ensure Authorization header format: `Bearer <token>`
-
-### Database Connection Issues
-- Verify MySQL is running
-- Check database credentials
-- Ensure database schema exists
-
-## Contributing
-
-This project is part of Revature P3. Please follow these guidelines:
-1. Create feature branches from `main`
-2. Follow Java coding conventions
-3. Write unit tests for new features
-4. Update documentation as needed
-
-## License
-
-Copyright 2024 Revature. All rights reserved.
+- Missing services in Eureka: ensure discovery-server is up and `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE` matches.
+- 401/403: confirm tokens, shared `JWT_SECRET`, and gateway is reachable from the client.
+- CORS: add origins in API Gateway `CorsConfig`.
+- DB issues: verify MySQL is running and credentials match datasource settings.
