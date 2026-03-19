@@ -39,14 +39,4 @@ public class LoanController {
             @PathVariable Long repaymentId) {
         return ResponseEntity.ok(loanService.payRepayment(userId, loanId, repaymentId));
     }
-
-    @PutMapping("/{loanId}/approve")
-    public ResponseEntity<LoanResponse> approveLoan(@PathVariable Long loanId) {
-        return ResponseEntity.ok(loanService.approveLoan(loanId));
-    }
-
-    @PutMapping("/{loanId}/reject")
-    public ResponseEntity<LoanResponse> rejectLoan(@PathVariable Long loanId) {
-        return ResponseEntity.ok(loanService.rejectLoan(loanId));
-    }
 }

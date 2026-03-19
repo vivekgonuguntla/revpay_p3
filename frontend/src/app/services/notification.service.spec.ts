@@ -29,40 +29,4 @@ describe('NotificationService', () => {
     expect(req.request.method).toBe('GET');
     req.flush([]);
   });
-
-  it('should load notification preferences', () => {
-    const response = {
-      transactionsEnabled: true,
-      requestsEnabled: false,
-      alertsEnabled: true,
-      lowBalanceThreshold: 250
-    };
-
-    service.getPreferences().subscribe(prefs => {
-      expect(prefs).toEqual(response);
-    });
-
-    const req = httpMock.expectOne(`${environment.apiUrl}/notifications/preferences`);
-    expect(req.request.method).toBe('GET');
-    req.flush(response);
-  });
-
-  it('should update notification preferences', () => {
-    const payload = {
-      transactionsEnabled: false,
-      requestsEnabled: true,
-      alertsEnabled: true,
-      lowBalanceThreshold: 75
-    };
-
-    service.updatePreferences(payload).subscribe(prefs => {
-      expect(prefs.lowBalanceThreshold).toBe(75);
-      expect(prefs.transactionsEnabled).toBeFalse();
-    });
-
-    const req = httpMock.expectOne(`${environment.apiUrl}/notifications/preferences`);
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual(payload);
-    req.flush(payload);
-  });
 });

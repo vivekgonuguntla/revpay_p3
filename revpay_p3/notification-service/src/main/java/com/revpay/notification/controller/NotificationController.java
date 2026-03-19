@@ -1,11 +1,8 @@
 package com.revpay.notification.controller;
 
-import com.revpay.notification.dto.NotificationPreferenceResponse;
 import com.revpay.notification.dto.NotificationResponse;
 import com.revpay.notification.dto.UnreadCountResponse;
-import com.revpay.notification.dto.UpdateNotificationPreferenceRequest;
 import com.revpay.notification.entity.NotificationCategory;
-import com.revpay.notification.service.NotificationPreferenceService;
 import com.revpay.notification.service.NotificationService;
 import com.revpay.notification.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,12 +21,10 @@ public class NotificationController {
     private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
 
     private final NotificationService notificationService;
-    private final NotificationPreferenceService preferenceService;
     private final JwtUtil jwtUtil;
 
-    public NotificationController(NotificationService notificationService, NotificationPreferenceService preferenceService, JwtUtil jwtUtil) {
+    public NotificationController(NotificationService notificationService, JwtUtil jwtUtil) {
         this.notificationService = notificationService;
-        this.preferenceService = preferenceService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -74,26 +69,5 @@ public class NotificationController {
 
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
-    }
-
-    @GetMapping("/preferences")
-    public ResponseEntity<NotificationPreferenceResponse> getPreferences(HttpServletRequest request) {
-        Long userId = jwtUtil.extractUserIdFromRequest(request);
-        log.info("Fetching notification preferences for user: {}", userId);
-
-        NotificationPreferenceResponse preferences = preferenceService.getPreferences(userId);
-        return ResponseEntity.ok(preferences);
-    }
-
-    @PutMapping("/preferences")
-    public ResponseEntity<NotificationPreferenceResponse> updatePreferences(
-            @RequestBody UpdateNotificationPreferenceRequest updateRequest,
-            HttpServletRequest request) {
-
-        Long userId = jwtUtil.extractUserIdFromRequest(request);
-        log.info("Updating notification preferences for user: {}", userId);
-
-        NotificationPreferenceResponse preferences = preferenceService.updatePreferences(userId, updateRequest);
-        return ResponseEntity.ok(preferences);
     }
 }

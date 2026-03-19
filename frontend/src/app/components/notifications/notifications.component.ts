@@ -5,7 +5,6 @@ import { MoneyRequestService } from '../../services/money-request.service';
 import {
   NotificationCategoryFilter,
   NotificationItem,
-  NotificationPreference,
   NotificationService
 } from '../../services/notification.service';
 
@@ -20,19 +19,10 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   unreadOnly = false;
   loading = false;
   error = '';
-  successMessage = '';
-  savingPreferences = false;
   showPinModal = false;
   pendingRequestAction: { requestId: number; notificationId: number } | null = null;
   processingRequestId: number | null = null;
   private requestStatusById: Record<number, string> = {};
-
-  preferences: NotificationPreference = {
-    transactionsEnabled: true,
-    requestsEnabled: true,
-    alertsEnabled: true,
-    lowBalanceThreshold: 100
-  };
 
   private pollSub: Subscription | null = null;
 
@@ -43,7 +33,6 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    this.loadPreferences();
     this.loadNotifications();
     this.loadRequestStatuses();
     this.notificationService.refreshUnreadCount();
@@ -200,39 +189,6 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   onPinCancel(): void {
     this.showPinModal = false;
     this.pendingRequestAction = null;
-  }
-
-  savePreferences(): void {
-    this.error = '';
-    this.successMessage = '';
-    this.savingPreferences = true;
-    this.notificationService.updatePreferences(this.preferences).subscribe({
-      next: (saved) => {
-        this.preferences = saved;
-        this.successMessage = 'Notification preferences saved.';
-        this.savingPreferences = false;
-      },
-      error: () => {
-        this.error = 'Failed to save notification preferences.';
-        this.savingPreferences = false;
-      }
-    });
-  }
-
-  private loadPreferences(): void {
-    this.notificationService.getPreferences().subscribe({
-      next: (prefs) => {
-        this.preferences = {
-          ...this.preferences,
-          ...prefs,
-          lowBalanceThreshold: prefs.lowBalanceThreshold ?? this.preferences.lowBalanceThreshold
-        };
-        this.error = '';
-      },
-      error: () => {
-        this.error = 'Failed to load notification preferences.';
-      }
-    });
   }
 
   private navigateTo(notification: NotificationItem): void {

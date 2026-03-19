@@ -157,20 +157,6 @@ export class BusinessComponent implements OnInit {
     });
   }
 
-  payInvoice(): void {
-    if (this.invoicePayForm.invalid) return;
-    this.loading = true;
-    this.businessService.payInvoice(this.invoicePayForm.value).subscribe({
-      next: (invoice) => {
-        this.showSuccess(`Invoice ${invoice.invoiceNumber} paid successfully.`);
-        this.notificationService.refreshUnreadCount();
-        this.loadInvoices();
-        this.loading = false;
-      },
-      error: (err) => this.handleError(err, 'Failed to process invoice payment')
-    });
-  }
-
   applyLoan(): void {
     if (this.loanForm.invalid) return;
     this.loading = true;

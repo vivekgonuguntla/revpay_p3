@@ -4,9 +4,7 @@ import com.revpay.notification.dto.NotificationRequest;
 import com.revpay.notification.dto.NotificationResponse;
 import com.revpay.notification.entity.Notification;
 import com.revpay.notification.entity.NotificationCategory;
-import com.revpay.notification.entity.NotificationPreference;
 import com.revpay.notification.exception.ResourceNotFoundException;
-import com.revpay.notification.repository.NotificationPreferenceRepository;
 import com.revpay.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +20,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,20 +33,16 @@ class NotificationServiceImplTest {
     @Mock
     private NotificationRepository notificationRepository;
 
-    @Mock
-    private NotificationPreferenceRepository preferenceRepository;
-
     @InjectMocks
     private NotificationServiceImpl notificationService;
 
     @Test
-    void createNotificationSavesWhenCategoryEnabled() {
+    void createNotificationSavesAndReturnsCreatedNotification() {
         NotificationRequest request = baseRequest();
         Notification saved = notificationFromRequest(request);
         saved.setId(10L);
         saved.setCreatedAt(LocalDateTime.of(2026, 3, 16, 9, 30));
 
-        when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(defaultPreference()));
         when(notificationRepository.save(any(Notification.class))).thenReturn(saved);
 
         NotificationResponse response = notificationService.createNotification(request);
@@ -61,43 +54,6 @@ class NotificationServiceImplTest {
         assertFalse(response.isRead());
         assertNotNull(response.getCreatedAt());
         verify(notificationRepository).save(any(Notification.class));
-    }
-
-    @Test
-    void createNotificationReturnsUnsavedResponseWhenCategoryDisabled() {
-        NotificationRequest request = baseRequest();
-        NotificationPreference disabledPreference = defaultPreference();
-        disabledPreference.setTransactionsEnabled(false);
-
-        when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(disabledPreference));
-
-        NotificationResponse response = notificationService.createNotification(request);
-
-        assertEquals(request.getUserId(), response.getUserId());
-        assertEquals(request.getTitle(), response.getTitle());
-        assertFalse(response.isRead());
-        assertNull(response.getId());
-        verify(notificationRepository, never()).save(any(Notification.class));
-    }
-
-    @Test
-    void createNotificationSuppressesLowBalanceAlertAboveThreshold() {
-        NotificationRequest request = NotificationRequest.builder()
-                .userId(1L)
-                .category(NotificationCategory.ALERTS)
-                .type("LOW_BALANCE")
-                .title("Low balance")
-                .message("Balance is healthy")
-                .amount(BigDecimal.valueOf(250))
-                .build();
-
-        when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(defaultPreference()));
-
-        NotificationResponse response = notificationService.createNotification(request);
-
-        assertEquals("Low balance", response.getTitle());
-        assertNull(response.getId());
-        verify(notificationRepository, never()).save(any(Notification.class));
     }
 
     @Test
@@ -178,32 +134,6 @@ class NotificationServiceImplTest {
         assertEquals(3L, unreadCount);
     }
 
-    @Test
-    void createNotificationRepairsPersistedLegacyPreferences() {
-        NotificationRequest request = baseRequest();
-        NotificationPreference legacyPreference = NotificationPreference.builder()
-                .id(15L)
-                .userId(1L)
-                .transactionsEnabled(false)
-                .requestsEnabled(false)
-                .alertsEnabled(true)
-                .lowBalanceThreshold(BigDecimal.valueOf(100))
-                .build();
-        Notification saved = notificationFromRequest(request);
-        saved.setId(88L);
-
-        when(preferenceRepository.findByUserId(1L)).thenReturn(Optional.of(legacyPreference));
-        when(preferenceRepository.save(legacyPreference)).thenReturn(legacyPreference);
-        when(notificationRepository.save(any(Notification.class))).thenReturn(saved);
-
-        NotificationResponse response = notificationService.createNotification(request);
-
-        assertEquals(88L, response.getId());
-        assertTrue(legacyPreference.isTransactionsEnabled());
-        assertTrue(legacyPreference.isRequestsEnabled());
-        verify(preferenceRepository).save(legacyPreference);
-    }
-
     private NotificationRequest baseRequest() {
         return NotificationRequest.builder()
                 .userId(1L)
@@ -234,17 +164,6 @@ class NotificationServiceImplTest {
                 .eventTime(request.getEventTime())
                 .metadataJson(request.getMetadataJson())
                 .isRead(false)
-                .build();
-    }
-
-    private NotificationPreference defaultPreference() {
-        return NotificationPreference.builder()
-                .id(1L)
-                .userId(1L)
-                .transactionsEnabled(true)
-                .requestsEnabled(true)
-                .alertsEnabled(true)
-                .lowBalanceThreshold(BigDecimal.valueOf(100))
                 .build();
     }
 }
