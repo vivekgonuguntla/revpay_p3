@@ -1,45 +1,7 @@
-import { AddCardRequest, Card } from './card.model';
-
 export type VerificationStatus = 'NOT_SUBMITTED' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED';
 export type InvoiceStatus = 'SENT' | 'PAID' | 'OVERDUE';
 export type LoanStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ADDITIONAL_DOCUMENTS_REQUIRED';
 export type RepaymentStatus = 'PENDING' | 'PAID' | 'OVERDUE';
-
-export interface BusinessProfile {
-    userId: number;
-    businessName: string;
-    businessType: string;
-    taxId: string;
-    businessAddress: string;
-    verificationDocsPath: string;
-    verificationStatus: VerificationStatus;
-}
-
-export interface BusinessVerificationUpdateRequest {
-    businessName: string;
-    businessType: string;
-    taxId: string;
-    businessAddress: string;
-    verificationDocsPath: string;
-}
-
-export interface BankAccountRequest {
-    bankName: string;
-    accountHolderName: string;
-    accountNumber: string;
-    routingNumber: string;
-    accountType: string;
-    setAsDefault: boolean;
-}
-
-export interface BankAccountResponse {
-    id: number;
-    bankName: string;
-    accountHolderName: string;
-    accountLastFour: string;
-    accountType: string;
-    defaultAccount: boolean;
-}
 
 export interface InvoiceItemRequest {
     itemName: string;
@@ -141,9 +103,3 @@ export interface BusinessAnalyticsResponse {
     }[];
 }
 
-export interface BusinessPaymentMethodState {
-    cards: Card[];
-    bankAccounts: BankAccountResponse[];
-}
-
-export type BusinessCardRequest = AddCardRequest;

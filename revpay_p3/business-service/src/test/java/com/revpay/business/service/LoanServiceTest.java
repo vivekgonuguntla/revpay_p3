@@ -143,37 +143,4 @@ class LoanServiceTest {
 
         assertThrows(BusinessException.class, () -> loanService.payRepayment(7L, 5L, 2L));
     }
-
-    @Test
-    void approveLoanCreatesRepaymentsForSubmittedLoan() {
-        BusinessLoan loan = BusinessLoan.builder()
-                .id(5L)
-                .userId(7L)
-                .loanAmount(new BigDecimal("12000"))
-                .status(LoanStatus.SUBMITTED)
-                .termMonths(3)
-                .remainingBalance(new BigDecimal("12000"))
-                .build();
-
-        when(businessLoanRepository.findById(5L)).thenReturn(Optional.of(loan));
-        when(businessLoanRepository.save(loan)).thenReturn(loan);
-        when(loanRepaymentRepository.findByLoanOrderByDueDateAsc(loan)).thenReturn(List.of());
-
-        LoanResponse response = loanService.approveLoan(5L);
-
-        verify(loanRepaymentRepository).saveAll(any(List.class));
-        assertEquals(LoanStatus.APPROVED, response.getStatus());
-    }
-
-    @Test
-    void approveLoanRejectsInvalidStatus() {
-        BusinessLoan loan = BusinessLoan.builder()
-                .id(5L)
-                .status(LoanStatus.REJECTED)
-                .build();
-
-        when(businessLoanRepository.findById(5L)).thenReturn(Optional.of(loan));
-
-        assertThrows(BusinessException.class, () -> loanService.approveLoan(5L));
-    }
 }

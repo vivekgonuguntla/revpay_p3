@@ -21,20 +21,6 @@ export interface NotificationItem {
   createdAt: string;
 }
 
-export interface NotificationPreference {
-  transactionsEnabled: boolean;
-  requestsEnabled: boolean;
-  alertsEnabled: boolean;
-  lowBalanceThreshold: number;
-}
-
-export interface UpdateNotificationPreferenceRequest {
-  transactionsEnabled?: boolean;
-  requestsEnabled?: boolean;
-  alertsEnabled?: boolean;
-  lowBalanceThreshold?: number;
-}
-
 @Injectable({
   providedIn: 'root'
 })
@@ -73,13 +59,5 @@ export class NotificationService {
     return this.http.patch<{ message: string }>(`${this.apiUrl}/read-all`, {}).pipe(
       tap(() => this.unreadCountSubject.next(0))
     );
-  }
-
-  getPreferences(): Observable<NotificationPreference> {
-    return this.http.get<NotificationPreference>(`${this.apiUrl}/preferences`);
-  }
-
-  updatePreferences(payload: UpdateNotificationPreferenceRequest): Observable<NotificationPreference> {
-    return this.http.put<NotificationPreference>(`${this.apiUrl}/preferences`, payload);
   }
 }

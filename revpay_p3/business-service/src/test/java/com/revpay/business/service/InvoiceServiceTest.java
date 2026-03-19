@@ -3,14 +3,12 @@ package com.revpay.business.service;
 import com.revpay.business.client.AuthServiceClient;
 import com.revpay.business.client.NotificationServiceClient;
 import com.revpay.business.dto.InvoiceItemRequest;
-import com.revpay.business.dto.InvoicePaymentRequest;
 import com.revpay.business.dto.InvoiceRequest;
 import com.revpay.business.dto.InvoiceResponse;
 import com.revpay.business.entity.Invoice;
 import com.revpay.business.entity.InvoiceItem;
 import com.revpay.business.entity.InvoiceStatus;
 import com.revpay.business.exception.BusinessException;
-import com.revpay.business.exception.ResourceNotFoundException;
 import com.revpay.business.repository.InvoiceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,10 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -88,49 +83,6 @@ class InvoiceServiceTest {
                 () -> invoiceService.lookupInvoices("EMAIL", " "));
 
         assertEquals("Lookup value is required", exception.getMessage());
-    }
-
-    @Test
-    void payInvoiceMarksLatestUnpaidMatchAsPaid() {
-        Invoice sentInvoice = Invoice.builder()
-                .id(3L)
-                .userId(8L)
-                .invoiceNumber("INV-1")
-                .customerEmail("alice@example.com")
-                .customerName("Alice")
-                .amount(new BigDecimal("200"))
-                .currency("USD")
-                .status(InvoiceStatus.SENT)
-                .createdAt(LocalDateTime.of(2026, 3, 10, 10, 0))
-                .dueDate(LocalDate.now().plusDays(5))
-                .items(List.of())
-                .build();
-
-        when(invoiceRepository.findByStatusAndDueDateBefore(eq(InvoiceStatus.SENT), any(LocalDate.class))).thenReturn(List.of());
-        when(invoiceRepository.findByCustomerEmailContainingIgnoreCase("alice@example.com")).thenReturn(List.of(sentInvoice));
-        when(invoiceRepository.findById(3L)).thenReturn(Optional.of(sentInvoice));
-        when(invoiceRepository.save(sentInvoice)).thenReturn(sentInvoice);
-
-        InvoicePaymentRequest request = new InvoicePaymentRequest();
-        request.setLookupType("EMAIL");
-        request.setLookupValue("alice@example.com");
-
-        InvoiceResponse response = invoiceService.payInvoice(request, 22L);
-
-        assertEquals(InvoiceStatus.PAID, response.getStatus());
-        assertNotNull(response.getPaidAt());
-    }
-
-    @Test
-    void payInvoiceThrowsWhenNoInvoiceMatchesLookup() {
-        when(invoiceRepository.findByStatusAndDueDateBefore(eq(InvoiceStatus.SENT), any(LocalDate.class))).thenReturn(List.of());
-        when(invoiceRepository.findByCustomerPhoneContainingIgnoreCase("9999")).thenReturn(List.of());
-
-        InvoicePaymentRequest request = new InvoicePaymentRequest();
-        request.setLookupType("PHONE");
-        request.setLookupValue("9999");
-
-        assertThrows(ResourceNotFoundException.class, () -> invoiceService.payInvoice(request, 22L));
     }
 
     @Test

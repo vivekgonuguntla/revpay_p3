@@ -2,7 +2,6 @@ package com.revpay.business.controller;
 
 import com.revpay.business.dto.InvoiceRequest;
 import com.revpay.business.dto.InvoiceResponse;
-import com.revpay.business.dto.InvoicePaymentRequest;
 import com.revpay.business.entity.InvoiceStatus;
 import com.revpay.business.service.InvoiceService;
 import jakarta.validation.Valid;
@@ -41,12 +40,5 @@ public class InvoiceController {
             @RequestParam String type,
             @RequestParam String value) {
         return ResponseEntity.ok(invoiceService.lookupInvoices(type, value));
-    }
-
-    @PostMapping("/pay")
-    public ResponseEntity<InvoiceResponse> payInvoice(
-            @RequestHeader("X-User-Id") Long payerUserId,
-            @Valid @RequestBody InvoicePaymentRequest request) {
-        return ResponseEntity.ok(invoiceService.payInvoice(request, payerUserId));
     }
 }

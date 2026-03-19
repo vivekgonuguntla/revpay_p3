@@ -3,21 +3,20 @@ package com.revpay.business.service;
 import com.revpay.business.client.NotificationServiceClient;
 import com.revpay.business.client.AuthServiceClient;
 import com.revpay.business.dto.InvoiceItemResponse;
-import com.revpay.business.dto.InvoicePaymentRequest;
 import com.revpay.business.dto.InvoiceRequest;
 import com.revpay.business.dto.InvoiceResponse;
 import com.revpay.business.entity.Invoice;
 import com.revpay.business.entity.InvoiceItem;
 import com.revpay.business.entity.InvoiceStatus;
 import com.revpay.business.exception.BusinessException;
-import com.revpay.business.exception.ResourceNotFoundException;
 import com.revpay.business.repository.InvoiceRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class InvoiceService {
+    private static final Logger log = LoggerFactory.getLogger(InvoiceService.class);
+
     private final InvoiceRepository invoiceRepository;
     private final NotificationServiceClient notificationServiceClient;
     private final AuthServiceClient authServiceClient;
@@ -85,7 +86,8 @@ public class InvoiceService {
             notification.navigationTarget = "/business/invoices/" + saved.getId();
             notification.eventTime = saved.getCreatedAt();
             notificationServiceClient.sendNotification(notification);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Failed to send invoice-created notification for invoice {}", saved.getInvoiceNumber(), e);
         }
 
         notifyCustomer(saved);
@@ -128,37 +130,6 @@ public class InvoiceService {
     }
 
     @Transactional
-    public InvoiceResponse payInvoice(InvoicePaymentRequest request, Long payerUserId) {
-        Invoice invoice = resolveInvoiceForPayment(request);
-
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
-            throw new BusinessException("Invoice already paid");
-        }
-
-        invoice.setStatus(InvoiceStatus.PAID);
-        invoice.setPaidAt(LocalDateTime.now());
-        Invoice saved = invoiceRepository.save(invoice);
-
-        try {
-            NotificationServiceClient.NotificationRequest notification = new NotificationServiceClient.NotificationRequest();
-            notification.userId = invoice.getUserId();
-            notification.category = "ALERTS";
-            notification.title = "Invoice Paid";
-            notification.message = "Invoice " + invoice.getInvoiceNumber() + " has been paid.";
-            notification.type = "INVOICE_PAID";
-            notification.amount = invoice.getAmount();
-            notification.counterparty = invoice.getCustomerName();
-            notification.eventStatus = "PAID";
-            notification.navigationTarget = "/business/invoices/" + invoice.getId();
-            notification.eventTime = saved.getPaidAt();
-            notificationServiceClient.sendNotification(notification);
-        } catch (Exception ignored) {
-        }
-
-        return mapToResponse(saved);
-    }
-
-    @Transactional
     public void checkOverdueInvoices() {
         List<Invoice> overdueInvoices = invoiceRepository.findByStatusAndDueDateBefore(InvoiceStatus.SENT, LocalDate.now());
         for (Invoice invoice : overdueInvoices) {
@@ -177,7 +148,8 @@ public class InvoiceService {
                 notification.navigationTarget = "/business/invoices/" + saved.getId();
                 notification.eventTime = java.time.LocalDateTime.now();
                 notificationServiceClient.sendNotification(notification);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                log.warn("Failed to send overdue notification for invoice {}", saved.getInvoiceNumber(), e);
             }
         }
     }
@@ -216,21 +188,6 @@ public class InvoiceService {
                 .build();
     }
 
-    private Invoice resolveInvoiceForPayment(InvoicePaymentRequest request) {
-        List<InvoiceResponse> matches = lookupInvoices(request.getLookupType(), request.getLookupValue());
-        if (matches.isEmpty()) {
-            throw new ResourceNotFoundException("Invoice not found");
-        }
-
-        InvoiceResponse selected = matches.stream()
-                .filter(match -> match.getStatus() != InvoiceStatus.PAID)
-                .max(Comparator.comparing(InvoiceResponse::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
-                .orElse(matches.get(0));
-
-        return invoiceRepository.findById(selected.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
-    }
-
     private void notifyCustomer(Invoice invoice) {
         Long customerUserId = resolveCustomerUserId(invoice);
         if (customerUserId == null) {
@@ -250,19 +207,24 @@ public class InvoiceService {
             notification.navigationTarget = "/business/invoices/" + invoice.getId();
             notification.eventTime = invoice.getCreatedAt();
             notificationServiceClient.sendNotification(notification);
-        } catch (Exception ignored) {
+            log.info("Customer notification sent for invoice {} to user {}", invoice.getInvoiceNumber(), customerUserId);
+        } catch (Exception e) {
+            log.warn("Failed to notify customer for invoice {} and customer user {}", invoice.getInvoiceNumber(), customerUserId, e);
         }
     }
 
     private Long resolveCustomerUserId(Invoice invoice) {
         if (invoice.getCustomerEmail() != null && !invoice.getCustomerEmail().isBlank()) {
             try {
-                Map<String, Object> user = authServiceClient.getUserByEmail(invoice.getCustomerEmail());
+                String normalizedEmail = invoice.getCustomerEmail().trim();
+                Map<String, Object> user = authServiceClient.getUserByEmail(normalizedEmail);
                 Object id = user.get("id");
                 if (id instanceof Number number) {
                     return number.longValue();
                 }
-            } catch (Exception ignored) {
+                log.warn("Auth lookup by email returned no numeric id for invoice {} and email {}", invoice.getInvoiceNumber(), normalizedEmail);
+            } catch (Exception e) {
+                log.warn("Failed to resolve customer by email {} for invoice {}", invoice.getCustomerEmail(), invoice.getInvoiceNumber(), e);
             }
         }
 
@@ -274,10 +236,14 @@ public class InvoiceService {
                 if (id instanceof Number number) {
                     return number.longValue();
                 }
-            } catch (Exception ignored) {
+                log.warn("Auth lookup by customerId returned no numeric id for invoice {} and customerId {}", invoice.getInvoiceNumber(), invoice.getCustomerId());
+            } catch (Exception e) {
+                log.warn("Failed to resolve customer by customerId {} for invoice {}", invoice.getCustomerId(), invoice.getInvoiceNumber(), e);
             }
         }
 
+        log.warn("Could not resolve customer user for invoice {}. email='{}', customerId='{}'",
+                invoice.getInvoiceNumber(), invoice.getCustomerEmail(), invoice.getCustomerId());
         return null;
     }
 }

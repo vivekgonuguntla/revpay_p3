@@ -2,8 +2,6 @@ package com.revpay.notification.config;
 
 import com.revpay.notification.entity.Notification;
 import com.revpay.notification.entity.NotificationCategory;
-import com.revpay.notification.entity.NotificationPreference;
-import com.revpay.notification.repository.NotificationPreferenceRepository;
 import com.revpay.notification.repository.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,11 +18,9 @@ public class DataLoader implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
 
     private final NotificationRepository notificationRepository;
-    private final NotificationPreferenceRepository preferenceRepository;
 
-    public DataLoader(NotificationRepository notificationRepository, NotificationPreferenceRepository preferenceRepository) {
+    public DataLoader(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
-        this.preferenceRepository = preferenceRepository;
     }
 
     @Override
@@ -36,16 +32,6 @@ public class DataLoader implements CommandLineRunner {
     }
 
     private void loadSampleData() {
-        // Sample notification preferences
-        NotificationPreference pref1 = NotificationPreference.builder()
-                .userId(1L)
-                .transactionsEnabled(true)
-                .requestsEnabled(true)
-                .alertsEnabled(true)
-                .lowBalanceThreshold(new BigDecimal("100.00"))
-                .build();
-        preferenceRepository.save(pref1);
-
         // Sample notifications
         Notification notification1 = Notification.builder()
                 .userId(1L)

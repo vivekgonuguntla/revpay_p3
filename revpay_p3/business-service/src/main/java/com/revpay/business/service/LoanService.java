@@ -119,63 +119,6 @@ public class LoanService {
         return mapToResponse(loan);
     }
 
-    @Transactional
-    public LoanResponse approveLoan(Long loanId) {
-        BusinessLoan loan = businessLoanRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found: " + loanId));
-
-        if (loan.getStatus() != LoanStatus.SUBMITTED && loan.getStatus() != LoanStatus.ADDITIONAL_DOCUMENTS_REQUIRED) {
-            throw new BusinessException("Loan cannot be approved in current status");
-        }
-
-        loan.setStatus(LoanStatus.APPROVED);
-        BusinessLoan saved = businessLoanRepository.save(loan);
-        createRepaymentSchedule(saved);
-
-        try {
-            NotificationServiceClient.NotificationRequest notification = new NotificationServiceClient.NotificationRequest();
-            notification.userId = loan.getUserId();
-            notification.category = "ALERTS";
-            notification.title = "Loan Approved";
-            notification.message = "Your loan application has been approved.";
-            notification.type = "LOAN_APPROVED";
-            notification.amount = loan.getLoanAmount();
-            notification.eventStatus = LoanStatus.APPROVED.name();
-            notification.navigationTarget = "/business";
-            notification.eventTime = java.time.LocalDateTime.now();
-            notificationServiceClient.sendNotification(notification);
-        } catch (Exception ignored) {
-        }
-
-        return mapToResponse(saved);
-    }
-
-    @Transactional
-    public LoanResponse rejectLoan(Long loanId) {
-        BusinessLoan loan = businessLoanRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan not found: " + loanId));
-
-        loan.setStatus(LoanStatus.REJECTED);
-        BusinessLoan saved = businessLoanRepository.save(loan);
-
-        try {
-            NotificationServiceClient.NotificationRequest notification = new NotificationServiceClient.NotificationRequest();
-            notification.userId = loan.getUserId();
-            notification.category = "ALERTS";
-            notification.title = "Loan Rejected";
-            notification.message = "Your loan application has been rejected.";
-            notification.type = "LOAN_REJECTED";
-            notification.amount = loan.getLoanAmount();
-            notification.eventStatus = LoanStatus.REJECTED.name();
-            notification.navigationTarget = "/business";
-            notification.eventTime = java.time.LocalDateTime.now();
-            notificationServiceClient.sendNotification(notification);
-        } catch (Exception ignored) {
-        }
-
-        return mapToResponse(saved);
-    }
-
     private void createRepaymentSchedule(BusinessLoan loan) {
         BigDecimal monthlyAmount = loan.getLoanAmount()
                 .divide(BigDecimal.valueOf(loan.getTermMonths()), 2, RoundingMode.HALF_UP);
